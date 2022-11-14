@@ -287,6 +287,10 @@ http {
     lua_shared_dict introspection {* http.lua_shared_dict["introspection"] *}; # cache for JWT verification results
     {% end %}
 
+    {% if enabled_plugins["cas-auth"] then %}
+    lua_shared_dict cas_sessions {* http.lua_shared_dict["cas-auth"] *};
+    {% end %}
+
     {% if enabled_plugins["authz-keycloak"] then %}
     # for authz-keycloak
     lua_shared_dict access-tokens {* http.lua_shared_dict["access-tokens"] *}; # cache for service account access tokens
@@ -349,9 +353,6 @@ http {
 
     include mime.types;
     charset {* http.charset *};
-
-    # error_page
-    error_page 500 @50x.html;
 
     {% if http.real_ip_header then %}
     real_ip_header {* http.real_ip_header *};
@@ -463,13 +464,6 @@ http {
                 apisix.http_control()
             }
         }
-
-        location @50x.html {
-            set $from_error_page 'true';
-            content_by_lua_block {
-                require("apisix.error_handling").handle_500()
-            }
-        }
     }
     {% end %}
 
@@ -543,13 +537,6 @@ http {
 
             content_by_lua_block {
                 apisix.http_admin()
-            }
-        }
-
-        location @50x.html {
-            set $from_error_page 'true';
-            content_by_lua_block {
-                require("apisix.error_handling").handle_500()
             }
         }
     }
@@ -651,7 +638,6 @@ http {
             set $upstream_host               $http_host;
             set $upstream_uri                '';
             set $ctx_ref                     '';
-            set $from_error_page             '';
 
             {% if wasm then %}
             set $wasm_process_req_body       '';
@@ -690,12 +676,6 @@ http {
 
             if ($http_x_forwarded_for != "") {
                 set $var_x_forwarded_for "${http_x_forwarded_for}, ${realip_remote_addr}";
-            }
-            if ($http_x_forwarded_host != "") {
-                set $var_x_forwarded_host $http_x_forwarded_host;
-            }
-            if ($http_x_forwarded_port != "") {
-                set $var_x_forwarded_port $http_x_forwarded_port;
             }
 
             proxy_set_header   X-Forwarded-For      $var_x_forwarded_for;
@@ -824,20 +804,6 @@ http {
             proxy_pass $upstream_mirror_uri;
         }
         {% end %}
-
-        location @50x.html {
-            set $from_error_page 'true';
-            content_by_lua_block {
-                require("apisix.error_handling").handle_500()
-            }
-            header_filter_by_lua_block {
-                apisix.http_header_filter_phase()
-            }
-
-            log_by_lua_block {
-                apisix.http_log_phase()
-            }
-        }
     }
     {% end %}
 

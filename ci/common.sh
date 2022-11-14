@@ -29,6 +29,8 @@ create_lua_deps() {
     make deps
     # maybe reopen this feature later
     # luarocks install luacov-coveralls --tree=deps --local > build.log 2>&1 || (cat build.log && exit 1)
+    # for github action cache
+    chmod -R a+r deps
 }
 
 rerun_flaky_tests() {
@@ -51,7 +53,7 @@ rerun_flaky_tests() {
     fi
 
     echo "Rerun $(echo "$tests" | xargs)"
-    FLUSH_ETCD=1 prove -I./test-nginx/lib -I./ $(echo "$tests" | xargs)
+    FLUSH_ETCD=1 prove --timer -I./test-nginx/lib -I./ $(echo "$tests" | xargs)
 }
 
 install_grpcurl () {

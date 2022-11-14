@@ -1,5 +1,5 @@
 {
-  "version": "2.15.0",
+  "version": "3.0.0",
   "sidebar": [
     {
       "type": "doc",
@@ -19,7 +19,9 @@
       "items": [
         "tutorials/expose-api",
         "tutorials/protect-api",
-        "tutorials/observe-your-api"
+        "tutorials/observe-your-api",
+        "tutorials/cache-api-responses",
+        "tutorials/health-check"
       ]
     },
     {
@@ -28,6 +30,7 @@
       "items": [
         "terminology/api-gateway",
         "terminology/consumer",
+        "terminology/consumer-group",
         "terminology/global-rule",
         "terminology/plugin",
         "terminology/plugin-config",
@@ -80,6 +83,7 @@
             "plugins/authz-casdoor",
             "plugins/wolf-rbac",
             "plugins/openid-connect",
+            "plugins/cas-auth",
             "plugins/hmac-auth",
             "plugins/authz-casbin",
             "plugins/ldap-auth",
@@ -281,10 +285,6 @@
         {
           "type": "doc",
           "id": "deployment-modes"
-        },
-        {
-          "type": "doc",
-          "id": "health-check"
         },
         {
           "type": "doc",

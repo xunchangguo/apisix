@@ -493,6 +493,11 @@ _EOC_
 
     $block->set_value("main_config", $main_config);
 
+    # The new directive is introduced here to modify the schema
+    # before apisix validate in require("apisix")
+    # Todo: merge extra_init_by_lua_start and extra_init_by_lua
+    my $extra_init_by_lua_start = $block->extra_init_by_lua_start // "";
+
     my $extra_init_by_lua = $block->extra_init_by_lua // "";
     my $init_by_lua_block = $block->init_by_lua_block // <<_EOC_;
     if os.getenv("APISIX_ENABLE_LUACOV") == "1" then
@@ -501,6 +506,8 @@ _EOC_
     end
 
     require "resty.core"
+
+    $extra_init_by_lua_start
 
     apisix = require("apisix")
     local args = {
@@ -546,6 +553,7 @@ _EOC_
     lua_shared_dict tars 1m;
     lua_shared_dict xds-config 1m;
     lua_shared_dict xds-config-version 1m;
+    lua_shared_dict cas_sessions 10m;
 
     proxy_ssl_name \$upstream_host;
     proxy_ssl_server_name on;
@@ -556,8 +564,6 @@ _EOC_
     underscores_in_headers on;
     lua_socket_log_errors off;
     client_body_buffer_size 8k;
-
-    error_page 500 \@50x.html;
 
     variables_hash_bucket_size 128;
 
@@ -635,21 +641,6 @@ _EOC_
 
             more_clear_headers Date;
         }
-
-        # this configuration is needed as error_page is configured in http block
-        location \@50x.html {
-            set \$from_error_page 'true';
-            content_by_lua_block {
-                require("apisix.error_handling").handle_500()
-            }
-            header_filter_by_lua_block {
-                apisix.http_header_filter_phase()
-            }
-
-            log_by_lua_block {
-                apisix.http_log_phase()
-            }
-        }
     }
 
     $a6_ngx_directives
@@ -725,20 +716,6 @@ _EOC_
             }
         }
 
-        location \@50x.html {
-            set \$from_error_page 'true';
-            content_by_lua_block {
-                require("apisix.error_handling").handle_500()
-            }
-            header_filter_by_lua_block {
-                apisix.http_header_filter_phase()
-            }
-
-            log_by_lua_block {
-                apisix.http_log_phase()
-            }
-        }
-
         location /v1/ {
             content_by_lua_block {
                 apisix.http_control()
@@ -754,7 +731,6 @@ _EOC_
             set \$upstream_host               \$http_host;
             set \$upstream_uri                '';
             set \$ctx_ref                     '';
-            set \$from_error_page             '';
 
             set \$upstream_cache_zone            off;
             set \$upstream_cache_key             '';
@@ -794,12 +770,6 @@ _EOC_
 
             if (\$http_x_forwarded_for != "") {
                 set \$var_x_forwarded_for "\${http_x_forwarded_for}, \${realip_remote_addr}";
-            }
-            if (\$http_x_forwarded_host != "") {
-                set \$var_x_forwarded_host \$http_x_forwarded_host;
-            }
-            if (\$http_x_forwarded_port != "") {
-                set \$var_x_forwarded_port \$http_x_forwarded_port;
             }
 
             proxy_set_header   X-Forwarded-For      \$var_x_forwarded_for;

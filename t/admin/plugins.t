@@ -62,6 +62,7 @@ __DATA__
 
 --- response_body
 real-ip
+ai
 client-control
 proxy-control
 request-id
@@ -78,6 +79,7 @@ csrf
 uri-blocker
 request-validation
 openid-connect
+cas-auth
 authz-casbin
 authz-casdoor
 wolf-rbac

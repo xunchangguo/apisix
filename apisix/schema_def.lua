@@ -437,6 +437,7 @@ local upstream_schema = {
         type = {
             description = "algorithms of load balancing",
             type = "string",
+            default = "roundrobin",
         },
         checks = health_checker,
         hash_on = {
@@ -498,8 +499,8 @@ local upstream_schema = {
         id = id_schema,
     },
     oneOf = {
-        {required = {"type", "nodes"}},
-        {required = {"type", "service_name", "discovery_type"}},
+        {required = {"nodes"}},
+        {required = {"service_name", "discovery_type"}},
     }
 }
 
@@ -698,6 +699,7 @@ _M.consumer = {
             type = "string", minLength = 1, maxLength = rule_name_def.maxLength,
             pattern = [[^[a-zA-Z0-9_]+$]]
         },
+        group_id = id_schema,
         plugins = plugins_schema,
         labels = labels_def,
         create_time = timestamp_def,
@@ -905,6 +907,20 @@ _M.plugins = {
 
 
 _M.plugin_config = {
+    type = "object",
+    properties = {
+        id = id_schema,
+        desc = desc_def,
+        plugins = plugins_schema,
+        labels = labels_def,
+        create_time = timestamp_def,
+        update_time = timestamp_def
+    },
+    required = {"id", "plugins"},
+}
+
+
+_M.consumer_group = {
     type = "object",
     properties = {
         id = id_schema,

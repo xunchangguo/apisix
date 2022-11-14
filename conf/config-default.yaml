@@ -112,9 +112,10 @@ apisix:
     ssl_session_tickets: false              #  disable ssl_session_tickets by default for 'ssl_session_tickets' would make Perfect Forward Secrecy useless.
                                             #  ref: https://github.com/mozilla/server-side-tls/issues/135
 
-    key_encrypt_salt: edd1c9f0985e76a2      #  If not set, will save origin ssl key into etcd.
-                                            #  If set this, must be a string of length 16. And it will encrypt ssl key with AES-128-CBC
-                                            #  !!! So do not change it after saving your ssl, it can't decrypt the ssl keys have be saved if you change !!
+    key_encrypt_salt:             #  If not set, will save origin ssl key into etcd.
+      - edd1c9f0985e76a2          #  If set this, the key_encrypt_salt should be an array whose elements are string, and the size is also 16, and it will encrypt ssl key with AES-128-CBC
+                                  #  !!! So do not change it after saving your ssl, it can't decrypt the ssl keys have be saved if you change !!
+                                  #  Only use the first key to encrypt, and decrypt in the order of the array.
 
     #fallback_sni: "my.default.domain"      # If set this, when the client doesn't send SNI during handshake, the fallback SNI will be used instead
   enable_control: true
@@ -130,7 +131,7 @@ nginx_config:                     # config for render the template to generate n
   error_log: logs/error.log
   error_log_level:  warn          # warn,error
   worker_processes: auto          # if you want use multiple cores in container, you can inject the number of cpu as environment variable "APISIX_WORKER_PROCESSES"
-  enable_cpu_affinity: true       # enable cpu affinity, this is just work well only on physical machine
+  enable_cpu_affinity: false      # disable CPU affinity by default, if APISIX is deployed on a physical machine, it can be enabled and work well.
   worker_rlimit_nofile: 20480     # the number of files a worker process can open, should be larger than worker_connections
   worker_shutdown_timeout: 240s   # timeout for a graceful shutdown of worker processes
 
@@ -239,6 +240,7 @@ nginx_config:                     # config for render the template to generate n
       access-tokens: 1m
       ext-plugin: 1m
       tars: 1m
+      cas-auth: 10m
 
 # HashiCorp Vault storage backend for sensitive data retrieval. The config shows an example of what APISIX expects if you
 # wish to integrate Vault for secret (sensetive string, public private keys etc.) retrieval. APISIX communicates with Vault
@@ -257,6 +259,12 @@ nginx_config:                     # config for render the template to generate n
 #  dns:
 #    servers:
 #      - "127.0.0.1:8600"         # use the real address of your dns server
+#    order:                       # order in which to try different dns record types when resolving
+#      - last                     # "last" will try the last previously successful type for a hostname.
+#      - SRV
+#      - A
+#      - AAAA
+#      - CNAME
 #  eureka:
 #    host:                        # it's possible to define multiple eureka hosts addresses of the same eureka cluster.
 #      - "http://127.0.0.1:8761"
@@ -382,6 +390,7 @@ graphql:
 
 plugins:                          # plugin list (sorted by priority)
   - real-ip                        # priority: 23000
+  - ai                             # priority: 22900
   - client-control                 # priority: 22000
   - proxy-control                  # priority: 21990
   - request-id                     # priority: 12015
@@ -401,6 +410,7 @@ plugins:                          # plugin list (sorted by priority)
   - uri-blocker                    # priority: 2900
   - request-validation             # priority: 2800
   - openid-connect                 # priority: 2599
+  - cas-auth                       # priority: 2597
   - authz-casbin                   # priority: 2560
   - authz-casdoor                  # priority: 2559
   - wolf-rbac                      # priority: 2555
