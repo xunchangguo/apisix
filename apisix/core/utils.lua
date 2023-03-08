@@ -25,8 +25,6 @@ local rfind_char     = core_str.rfind_char
 local table          = require("apisix.core.table")
 local log            = require("apisix.core.log")
 local string         = require("apisix.core.string")
-local env            = require("apisix.core.env")
-local lrucache       = require("apisix.core.lrucache")
 local dns_client     = require("apisix.core.dns.client")
 local ngx_re         = require("ngx.re")
 local ipmatcher      = require("resty.ipmatcher")
@@ -37,7 +35,6 @@ local sub_str        = string.sub
 local str_byte       = string.byte
 local tonumber       = tonumber
 local tostring       = tostring
-local pairs          = pairs
 local re_gsub        = ngx.re.gsub
 local type           = type
 local io_popen       = io.popen
@@ -296,6 +293,7 @@ do
     local _ctx
     local n_resolved
     local pat = [[(?<!\\)\$\{?(\w+)\}?]]
+    local _escaper
 
     local function resolve(m)
         local v = _ctx[m[1]]
@@ -303,10 +301,13 @@ do
             return ""
         end
         n_resolved = n_resolved + 1
+        if _escaper then
+            return _escaper(tostring(v))
+        end
         return tostring(v)
     end
 
-    function resolve_var(tpl, ctx)
+    function resolve_var(tpl, ctx, escaper)
         n_resolved = 0
         if not tpl then
             return tpl, nil, n_resolved
@@ -319,8 +320,10 @@ do
 
         -- avoid creating temporary function
         _ctx = ctx
+        _escaper = escaper
         local res, _, err = re_gsub(tpl, pat, resolve, "jo")
         _ctx = nil
+        _escaper = nil
         if not res then
             return nil, err
         end
@@ -330,59 +333,6 @@ do
 end
 -- Resolve ngx.var in the given string
 _M.resolve_var = resolve_var
-
-
-local secrets_lrucache = lrucache.new({
-    ttl = 300, count = 512
-})
-
-local retrieve_secrets_ref
-do
-    local retrieve_ref
-    function retrieve_ref(refs)
-        for k, v in pairs(refs) do
-            local typ = type(v)
-            if typ == "string" then
-                refs[k] = env.get(v) or v
-            elseif typ == "table" then
-                retrieve_ref(v)
-            end
-        end
-        return refs
-    end
-
-    local function retrieve(refs)
-        log.info("retrieve secrets refs")
-
-        local new_refs = table.deepcopy(refs)
-        return retrieve_ref(new_refs)
-    end
-
-    function retrieve_secrets_ref(refs, cache, key, version)
-        if not refs or type(refs) ~= "table" then
-            return nil
-        end
-        if not cache then
-            return retrieve(refs)
-        end
-        return secrets_lrucache(key, version, retrieve, refs)
-    end
-end
--- Retrieve all secrets ref in the given table
----
--- Retrieve all secrets ref in the given table,
--- and then replace them with the values from the environment variables.
---
--- @function core.utils.retrieve_secrets_ref
--- @tparam table refs The table to be retrieved.
--- @tparam boolean cache Whether to use lrucache to cache results.
--- @tparam string key The cache key for lrucache.
--- @tparam string version The cache version for lrucache.
--- @treturn table The table after the reference is replaced.
--- @usage
--- local new_refs = core.utils.retrieve_secrets_ref(refs) -- "no cache"
--- local new_refs = core.utils.retrieve_secrets_ref(refs, true, key, ver) -- "cache"
-_M.retrieve_secrets_ref = retrieve_secrets_ref
 
 
 return _M

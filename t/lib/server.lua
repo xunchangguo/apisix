@@ -532,7 +532,7 @@ function _M.google_logging_entries()
         return
     end
 
-    token = string.sub(token, string.len(args_token_type) + 2)
+    token = string.sub(token, #args_token_type + 2)
     local verify = jwt:verify(rsa_public_key, token)
     if not verify.verified then
         ngx.status = 401
@@ -576,5 +576,18 @@ function _M.go()
     inject_headers()
     return _M[action]()
 end
+
+
+function _M.clickhouse_logger_server()
+    ngx.req.read_body()
+    local data = ngx.req.get_body_data()
+    local headers = ngx.req.get_headers()
+    ngx.log(ngx.WARN, "clickhouse body: ", data)
+    for k, v in pairs(headers) do
+        ngx.log(ngx.WARN, "clickhouse headers: " .. k .. ":" .. v)
+    end
+    ngx.say("ok")
+end
+
 
 return _M
